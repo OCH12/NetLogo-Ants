@@ -1,5 +1,418 @@
 *.class
 *.log
+;;GA - POPULATION BASED - INSPIRED BY NATURAL SLECTIONS AND EVOLOUTION / EXPLORE AND SOLVE NEAR-OPTIMAL SOLOUTIONS IN LAGRE SEARCH SPACES
+;    - common in machine learning - finding optimal soloutions
+;ACO - probalistic approach to solve optimization problems
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
+patches-own [ ;properties of patches in the world
+  pheromone            ;; amount of pheromone on this patch - amount of phereomone on each patch
+  food                 ;; amount of food on this patch (0, 1, or 2)
+
+]
+
+turtles-own [
+  carrying-food?
+]
+
+;;; Setup procedures ;;;
+
+to setup
+  clear-all
+  set-default-shape turtles "ant"
+  setup-patches
+  reset-ticks
+end
+
+to setup-patches
+  setup-nest
+  setup-food
+  recolor-patches
+end
+
+to setup-nest
+  ask patches with [ nest? ] [
+    set pcolor violet
+  ]
+end
+
+to setup-food
+  ;; setup a food source on the right
+  ask patch (0.6 * max-pxcor) (-0.5 * max-pycor) [
+    make-food-source magenta
+  ]
+  end
+
+to make-food-source [ food-source-color ] ;; patch procedure
+  ask patches with [ distance myself < 5 ] [
+    set food 2
+    set pcolor food-source-color
+  ]
+end
+
+to recolor-patches
+  ask patches with [ food = 0 and not nest? ] [
+    ;; scale color to show pheromone concentration
+    set pcolor scale-color green pheromone 0.1 5
+  ]
+end
+
+
+;Go procedures ;;;;;;;;;;;;;
+
+to go  ;; forever button
+  ;; add ants one at a time
+  if count turtles < population [ create-ant ]
+
+  ask turtles [
+    move-around-world
+    recolor
+  ]
+
+
+
+  ; observer primitive - makes all patches share the patch with 8 neighbors / number 50 determines the maximum of that patch variable to be shared.
+  ; simulating a natural spread in the environment form high to low concentration of phereomone.
+  diffuse pheromone (diffusion-of-pheromone / 50)
+  ask patches [
+    ;; slowly evaporate pheromone
+    set pheromone pheromone * (100 - evaporation-of-pheromone) / 100
+    if pheromone < 0.05 [ set pheromone 0 ]
+  ]
+  recolor-patches
+  tick
+end
+
+to move-around-world  ;; turtle procedure
+  if not carrying-food? [ food-forage  ]  ;; if not carrying food, look for it
+  if carrying-food? [ move-towards-nest ]   ;; if carrying food head back to the nest
+  wander                                    ;; turn a small random amount and move forward
+end
+
+to create-ant
+  create-turtles 1 [
+    set size 2  ;; easier to see
+    set carrying-food? false
+  ]
+end
+;GA - adjusting the input variables to maximise the output of a function
+to move-towards-nest  ;; turtle procedure ; direction of the turtle to increase chances of finding food - GA
+  ifelse nest? [
+    ;; drop food and head out again
+    set carrying-food? false
+    rt 180
+  ] [
+    set pheromone pheromone + 60  ;; drop some pheromone
+    ;; turn towards the nest, which is at the center
+    facexy -6 0
+  ]
+end
+
+to food-forage  ;; turtle procedure
+  ifelse food > 0 [
+    set carrying-food? true  ;; pick up food
+    set food food - 1        ;; and reduce the food source by one as an ant would only collect a single food source
+    rt 180                   ;; and turn around
+  ] [ ;; go in the direction where the pheromone smell is strongest
+    uphill-pheromone
+  ]
+end
+
+;; sniff left and right, and go where the strongest smell is
+to uphill-pheromone  ;; turtle procedure
+  ;; only turn if the current patch doesn't have much pheromone
+  if pheromone < 2 [
+    let scent-ahead pheromone-scent-at-angle   0
+    let scent-right pheromone-scent-at-angle  45
+    let scent-left  pheromone-scent-at-angle -45
+    if (scent-right > scent-ahead) or (scent-left > scent-ahead) [
+      ifelse scent-right > scent-left
+        [ rt 45 ]
+        [ lt 45 ]
+    ]
+  ]
+end
+
+;randomization - using chance to predict sequences
+
+
+to wander  ;; turtle procedure   -randomization - generate random values - in range - control of turtle's movement
+  rt random 40
+  lt random 40
+  if not can-move? 1 [ rt 180 ]
+  fd 1
+end
+
+to recolor  ;; turtle procedure
+  ifelse carrying-food?
+    [ set color orange + 1 ]
+    [ set color red ]
+end
+; procedures ready to return a value
+to-report pheromone-scent-at-angle [ angle ]
+  let p patch-right-and-ahead angle 1
+  if p = nobody [ report 0 ]
+  report [ pheromone ] of p
+end
+
+to-report nest? ;; patch or turtle reporter
+  report distancexy -6 0 < 5
+end
+
+
+***********MODEL 2*********
+;GA - POPULATION BASED - INSPIRED BY NATURAL SLECTIONS AND EVOLOUTION / EXPLORE AND SOLVE NEAR-OPTIMAL SOLOUTIONS IN LAGRE SEARCH SPACES
+
+patches-own [
+  pheromone            ;; amount of pheromone on this patch
+  food                 ;; amount of food on this patch (0, 1, or 2)
+
+]
+
+turtles-own [
+  carrying-food?
+]
+
+;;; Setup procedures ;;;
+
+to setup
+  clear-all
+  set-default-shape turtles "ant"
+  setup-patches
+  reset-ticks
+end
+
+to setup-patches
+  setup-nest
+  setup-food
+  recolor-patches
+end
+
+to setup-nest
+  ask patches with [ nest? ] [    ;nest is a reporter at the bottom
+    set pcolor violet
+  ]
+end
+
+to setup-food
+  ;; setup a food source on the right
+  ask patch (0.6 * max-pxcor) (-0.5 * max-pycor) [
+    make-food-source magenta
+  ]
+  ;; setup a food source on the lower-left
+  ask patch (-0.6 * max-pxcor) (-0.6 * max-pycor) [
+    make-food-source Orange
+  ]
+  ;; setup a food source on the upper-left
+  ask patch (-0.8 * max-pxcor) (0.8 * max-pycor) [
+    make-food-source blue
+  ]
+end
+
+to make-food-source [ food-source-color ] ;; patch procedure
+  ask patches with [ distance myself < 5 ] [
+    set food 2 ;current selected patch now on 2 units
+    set pcolor food-source-color ;representing two patch one being unattained the other taken
+  ]
+end
+
+; no food on a patch and no nest neaby so the pheremone can be on empty patches
+; scale-color to scale the golor green (patches) based on the value of the pheromone variable
+to recolor-patches
+  ask patches with [ food = 0 and not nest? ] [
+    ;; scale color to show pheromone concentration
+    set pcolor scale-color green pheromone 0.1 5
+  ]
+end
+
+
+;Go procedures ;;;;;;;;;;;;;
+
+to go  ;; forever button
+  ;; add ants one at a time
+  if count turtles < population [ create-ant ]
+
+  ask turtles [
+    move-around-world
+    recolor
+  ]
+  diffuse pheromone (diffusion-of-pheromone / 50); observer primitive - makes all patches share the patch with 8 neighbors / number 50 determines the maximum of that patch variable to be shared.
+  ask patches [
+    ;; slowly evaporate pheromone
+    set pheromone pheromone * (100 - evaporation-of-pheromone) / 100
+    if pheromone < 0.05 [ set pheromone 0 ]
+  ]
+  recolor-patches
+  tick
+end
+
+to move-around-world  ;; turtle procedure
+  if not carrying-food? [ food-forage  ]  ;; if not carrying food, look for it
+  if carrying-food? [ move-towards-nest ]   ;; if carrying food head back to the nest
+  wander                                    ;; turn a small random amount and move forward
+end
+
+to create-ant
+  create-turtles 1 [
+    set size 2  ;; easier to see
+    set carrying-food? false
+  ]
+end
+
+to move-towards-nest  ;; turtle procedure
+  ifelse nest? [
+    ;; drop food and head out again
+    set carrying-food? false
+    rt 180
+  ] [
+    set pheromone pheromone + 60  ;; drop some pheromone
+    ;; turn towards the nest, which is at the center
+    facexy -6 0
+  ]
+end
+
+to food-forage  ;; turtle procedure
+  ifelse food > 0 [
+    set carrying-food? true  ;; pick up food
+    set food food - 1        ;; and reduce the food source by one as an ant would only collect a single food source
+    rt 180                   ;; and turn around
+  ] [ ;; go in the direction where the pheromone smell is strongest
+    uphill-pheromone
+  ]
+end
+
+;; sniff left and right, and go where the strongest smell is
+to uphill-pheromone  ;; turtle procedure
+  ;; only turn if the current patch doesn't have much pheromone
+  if pheromone < 2 [
+    let scent-ahead pheromone-scent-at-angle   0
+    let scent-right pheromone-scent-at-angle  45
+    let scent-left  pheromone-scent-at-angle -45
+    if (scent-right > scent-ahead) or (scent-left > scent-ahead) [
+      ifelse scent-right > scent-left
+        [ rt 45 ]
+        [ lt 45 ]
+    ]
+  ]
+end
+
+;randomization
+to wander  ;; turtle procedure
+  rt random 40
+  lt random 40
+  if not can-move? 1 [ rt 180 ]
+  fd 1
+end
+
+to recolor  ;; turtle procedure
+  ifelse carrying-food?
+    [ set color orange + 1 ]
+    [ set color red ]
+end
+;reporters retun vales which can be used in expressions or when assigned to variables.
+to-report pheromone-scent-at-angle [ angle ]
+  let p patch-right-and-ahead angle 1 ; P is set to one patch-width away from the current patch in direction of angle
+  if p = nobody [ report 0 ] ; if there is no patch in that direction, reporter procedure indicates no phereomone spotted
+  report [ pheromone ] of p  ; value of the phereomone for patch p
+end
+;nest? distance between the calling turtle and nest is true < 5 units
+to-report nest? ;; patch or turtle reporter
+  report distancexy -6 0 < 5
+end
+
+
+
+**********Model 3***********************************
+patches-own [pheromone
+food]
+
+to setup
+  clear-all
+  set-default-shape turtles "ant"
+  create-turtles population
+  [ set color red
+    set size 2  ;; easier to see
+    setxy random-xcor random-ycor ]
+  ask patches [ set pheromone 0 ]
+  reset-ticks
+end
+
+to go
+  ask turtles
+  [ if pheromone > sniff-threshold                  ;; ignore pheromone unless there's enough here
+      [ turn-toward-chemical ]
+    rt random-float rotation-angle - random-float rotation-angle + rotation-bias
+    fd 1
+    set pheromone pheromone + 2 ]                    ;; drop pheromone onto patch and increase the size by 2
+  diffuse pheromone 1                               ;; diffuse pheromone to neighboring patches
+  ask patches
+  [ set pheromone pheromone * 0.9                    ;; evaporate pheromone - reduce each patche pheromone level by 10%
+    set pcolor scale-color green pheromone 0.1 3 ]  ;; update display of pheromone concentration
+  tick
+end
+
+to turn-toward-chemical  ;; turtle procedure
+  ;; examine the patch ahead of you and two nearby patches;
+  ;; turn in the direction of greatest chemical
+  let ahead [pheromone] of patch-ahead 1
+  let myright [pheromone] of patch-right-and-ahead sniff-angle 1
+  let myleft [pheromone] of patch-left-and-ahead sniff-angle 1
+  ifelse (myright >= ahead) and (myright >= myleft)
+  [ rt sniff-angle ]
+  [ if myleft >= ahead
+    [ lt sniff-angle ] ]
+    ;; default: don't turn
+end
+
+;Data structure - patches have two attributes, "phereomone" and "food" /
+;               - turtles have "turn-toward-chemical" procedure allowing them to navigate towards food sources using the phereomones patches.
+;               - diffusion process spread - pheromones between patches - each timestep the phereomone levels update
+;ALGORITHM - ACO - inspired algorithm of ant foraging behaviour to find shortest path to outcome
+;                - ants follow pheromone trail to find food - reinforcing the greatest concentrated path - evaported over time - more is made to maintain trail
+;                - robust and efficeint network of paths, connecting the food sources to piles
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+;
+
+
+
+
+
+
+;!!!
+;This code is supported by the study of the NetLogo code in the models Library "ants"
+
+
+
